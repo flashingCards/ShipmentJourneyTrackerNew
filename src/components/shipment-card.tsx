@@ -1,9 +1,10 @@
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card } from '@/components/ui/card';
-import type { Shipment, ShipmentNode } from '@/lib/types';
+import type { Shipment, ShipmentNode as ShipmentNodeType } from '@/lib/types';
 import { Calendar, Clock, CheckCircle, XCircle, Anchor, MapPin, Truck, Package, Plane, Building2, ShieldCheck, Shield, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { CommentBox } from '@/components/comment-box';
 
 const StatusIndicator = ({ status }: { status: string }) => {
   if (!status || status === 'N/A') return <span className="text-sm text-muted-foreground">N/A</span>;
@@ -110,7 +111,7 @@ export function ShipmentCard({ shipment }: { shipment: Shipment }) {
               <div className="absolute left-[23px] top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
               {timelineWithoutDelivered.length > 0 ? (
                 timelineWithoutDelivered.map((node, index) => (
-                  <TimelineNode key={index} node={node} isLast={index === timelineWithoutDelivered.length - 1} />
+                  <TimelineNode key={index} shipmentScancode={shipment.scancode} node={node} isLast={index === timelineWithoutDelivered.length - 1} />
                 ))
               ) : (
                 <p className="text-muted-foreground">No timeline data available for this shipment.</p>
@@ -135,17 +136,10 @@ const timelineIcons: { [key: string]: React.ElementType } = {
   'Shipment Delivered': Home,
 }
 
-const TimelineNode = ({ node, isLast }: { node: ShipmentNode, isLast: boolean }) => {
+const TimelineNode = ({ node, isLast, shipmentScancode }: { node: ShipmentNodeType, isLast: boolean, shipmentScancode: string }) => {
     const hasActual = node.actualDate && node.actualDate !== 'N/A';
     const isDelayed = hasActual && node.idealDate && node.idealDate !== 'N/A' && new Date(node.actualDate) > new Date(node.idealDate);
     const NodeIcon = timelineIcons[node.name] || Package;
-
-    let statusIcon;
-    if (hasActual) {
-        statusIcon = isDelayed ? <XCircle className="h-full w-full text-destructive" /> : <CheckCircle className="h-full w-full text-chart-2" />;
-    } else {
-        statusIcon = <Clock className="h-5 w-5 text-muted-foreground" />;
-    }
 
     return (
         <div className={cn('flex gap-4 items-start', !isLast ? 'pb-8' : '')}>
@@ -167,6 +161,7 @@ const TimelineNode = ({ node, isLast }: { node: ShipmentNode, isLast: boolean })
                         <span className="font-medium">Actual:</span> {node.actualDate}
                     </p>
                 </div>
+                <CommentBox shipmentScancode={shipmentScancode} nodeName={node.name} />
             </div>
         </div>
     );

@@ -1,0 +1,36 @@
+{
+  "entities": {
+    "NodeComment": {
+      "title": "Node Comment",
+      "description": "A comment on a shipment timeline node.",
+      "type": "object",
+      "properties": {
+        "authorName": {
+          "type": "string",
+          "description": "The name of the author."
+        },
+        "message": {
+          "type": "string",
+          "description": "The content of the comment."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the comment was created."
+        }
+      },
+      "required": ["authorName", "message", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": []
+  },
+  "firestore": {
+    "/shipments/{shipmentId}/node_comments/{commentId}": {
+      "schema": {
+        "$ref": "#/backend/entities/NodeComment"
+      },
+      "description": "Stores comments for a specific node within a shipment's timeline."
+    }
+  }
+}

@@ -30,3 +30,11 @@ export type Shipment = {
 
   timeline: ShipmentNode[];
 };
+
+export interface NodeComment {
+  id: string;
+  authorName: string;
+  message: string;
+  createdAt: any; // Using `any` for Firebase Timestamp flexibility
+  nodeName: string;
+}
