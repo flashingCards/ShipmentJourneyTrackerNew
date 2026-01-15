@@ -66,6 +66,16 @@ export function ShipmentCard({ shipment }: { shipment: Shipment }) {
                 <DetailItem icon={MapPin} label="Country" value={shipment.country} />
                 <DetailItem icon={Anchor} label="Injection Port" value={shipment.injectionPort} />
                 <DetailItem icon={Calendar} label="Node Avail. Day" value={shipment.nodeAvailableDay} />
+                 <div className="flex items-start gap-4 pt-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-muted-foreground w-16">Overall:</span>
+                      <StatusIndicator status={shipment.overFlag} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-muted-foreground w-16">Node:</span>
+                      <StatusIndicator status={shipment.nodeFlag} />
+                    </div>
+                </div>
               </div>
 
               <div className="md:col-span-5 grid grid-cols-2 lg:grid-cols-4 gap-2">
@@ -73,17 +83,6 @@ export function ShipmentCard({ shipment }: { shipment: Shipment }) {
                 <DateItem label="Gateway" ideal={shipment.connectedToGatewayIdealDate} actual={shipment.connectedToGatewayActualDate} />
                 <DateItem label="Injected" ideal={shipment.injectedIdealDate} actual={shipment.injectedActualDate} />
                 <DateItem label="Delivered" ideal={shipment.deliveredIdealDate} actual={shipment.deliveredActualDate} forceIdeal={true} />
-              </div>
-              
-              <div className="col-span-full md:col-start-1 md:col-span-3 flex md:flex-col gap-4 md:gap-2 pt-2 md:pt-0 border-t md:border-none mt-2 md:mt-0">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="font-semibold text-muted-foreground w-16">Overall:</span>
-                    <StatusIndicator status={shipment.overFlag} />
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="font-semibold text-muted-foreground w-16">Node:</span>
-                    <StatusIndicator status={shipment.nodeFlag} />
-                  </div>
               </div>
             </div>
           </div>
