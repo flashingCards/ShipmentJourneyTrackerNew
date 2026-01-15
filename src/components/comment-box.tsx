@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirestore } from '@/firebase/provider';
-import { collection, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -32,28 +32,21 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [formIsOpen, setFormIsOpen] = useState(false);
 
-  // Simplified query for better performance. Sorting is now handled client-side.
   const commentsQuery = useMemo(() => {
     if (!firestore) return null;
     const commentsPath = `shipments/${shipmentScancode}/node_comments`;
     return query(
         collection(firestore, commentsPath),
-        where('nodeName', '==', nodeName)
+        where('nodeName', '==', nodeName),
+        orderBy('createdAt', 'desc')
     );
   }, [firestore, shipmentScancode, nodeName]);
 
   const { data: comments, loading, error } = useCollection<Omit<NodeComment, 'id'>>(commentsQuery);
   
-  // Sort comments on the client-side
   const nodeComments = useMemo(() => {
     if (!comments) return [];
-    const mappedComments = comments.map(doc => ({ id: doc.id, ...doc.data() } as NodeComment));
-    return mappedComments.sort((a, b) => {
-      if (a.createdAt && b.createdAt) {
-        return b.createdAt.toDate() - a.createdAt.toDate();
-      }
-      return 0; // Keep original order if timestamps are missing
-    });
+    return comments.map(doc => ({ id: doc.id, ...doc.data() } as NodeComment));
   }, [comments]);
 
 
@@ -77,17 +70,20 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
       createdAt: serverTimestamp(),
     };
 
-    addDoc(collection(firestore, commentsPath), commentData)
+    const commentsCollection = collection(firestore, commentsPath);
+
+    addDoc(commentsCollection, commentData)
       .then(() => {
         setNewComment('');
-        setFormIsOpen(false); // Close form on success
+        setAuthorName('');
+        setFormIsOpen(false);
         toast({
           title: 'Comment Added',
           description: 'Your comment has been successfully submitted.',
         });
       })
-      .catch((e) => {
-        console.error('Error adding comment: ', e);
+      .catch((err) => {
+        console.error('Error adding document: ', err);
         const permissionError = new FirestorePermissionError({
           path: commentsPath,
           operation: 'create',
