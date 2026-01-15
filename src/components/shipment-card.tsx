@@ -29,18 +29,34 @@ const DetailItem = ({ icon: Icon, label, value }: { icon: React.ElementType, lab
 );
 
 const DateItem = ({ label, ideal, actual, forceIdeal }: { label: string, ideal: string, actual: string, forceIdeal?: boolean }) => {
-    const displayDate = forceIdeal ? ideal : (actual || 'N/A');
     const isDelayed = actual && actual !== 'N/A' && ideal && ideal !== 'N/A' && new Date(actual) > new Date(ideal);
+
+    if (forceIdeal) {
+      return (
+        <div className="flex flex-col p-2 rounded-md bg-muted/50">
+            <p className="text-xs text-muted-foreground font-semibold">{label}</p>
+            <div className="mt-1">
+                <p className="text-xs text-muted-foreground/80">Ideal</p>
+                <p className="text-sm font-bold text-foreground">{ideal || 'N/A'}</p>
+            </div>
+        </div>
+      )
+    }
     
     return (
         <div className="flex flex-col p-2 rounded-md bg-muted/50">
-            <p className="text-xs text-muted-foreground font-semibold">{label}</p>
-            <p className="text-sm font-bold text-foreground" title={`Ideal: ${ideal}`}>
-                {displayDate}
+            <p className="text-xs text-muted-foreground font-semibold flex justify-between items-center">
+              <span>{label}</span>
+              {isDelayed && <Badge variant="destructive" className="px-1.5 py-0 text-[10px]">Delayed</Badge>}
             </p>
-            {!forceIdeal && isDelayed && (
-                <p className="text-xs font-semibold text-destructive">Delayed</p>
-            )}
+            <div className="mt-1">
+                <p className="text-xs text-muted-foreground/80">Ideal</p>
+                <p className="text-sm font-medium text-foreground">{ideal || 'N/A'}</p>
+            </div>
+            <div className="mt-1.5">
+                <p className="text-xs text-muted-foreground/80">Actual</p>
+                <p className={cn("text-sm font-bold", isDelayed ? 'text-destructive' : 'text-chart-2')}>{actual || 'N/A'}</p>
+            </div>
         </div>
     );
 };
