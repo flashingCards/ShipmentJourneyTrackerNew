@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import type { Shipment, ShipmentNode } from '@/lib/types';
 import { Calendar, Clock, CheckCircle, XCircle, Anchor, MapPin, Truck, Package, Plane, Building2, ShieldCheck, Shield, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 const StatusIndicator = ({ status }: { status: string }) => {
   if (!status || status === 'N/A') return <span className="text-sm text-muted-foreground">N/A</span>;
