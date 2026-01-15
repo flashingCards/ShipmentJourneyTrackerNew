@@ -28,15 +28,17 @@ const DetailItem = ({ icon: Icon, label, value }: { icon: React.ElementType, lab
   </div>
 );
 
-const DateItem = ({ label, ideal, actual }: { label: string, ideal: string, actual: string }) => {
+const DateItem = ({ label, ideal, actual, forceIdeal }: { label: string, ideal: string, actual: string, forceIdeal?: boolean }) => {
+    const displayDate = forceIdeal ? ideal : (actual || 'N/A');
     const isDelayed = actual && actual !== 'N/A' && ideal && ideal !== 'N/A' && new Date(actual) > new Date(ideal);
+    
     return (
         <div className="flex flex-col p-2 rounded-md bg-muted/50">
             <p className="text-xs text-muted-foreground font-semibold">{label}</p>
             <p className="text-sm font-bold text-foreground" title={`Ideal: ${ideal}`}>
-                {actual || 'N/A'}
+                {displayDate}
             </p>
-            {isDelayed && (
+            {!forceIdeal && isDelayed && (
                 <p className="text-xs font-semibold text-destructive">Delayed</p>
             )}
         </div>
@@ -44,6 +46,8 @@ const DateItem = ({ label, ideal, actual }: { label: string, ideal: string, actu
 };
 
 export function ShipmentCard({ shipment }: { shipment: Shipment }) {
+  const timelineWithoutDelivered = shipment.timeline.filter(node => node.name !== 'Shipment Delivered');
+  
   return (
     <AccordionItem value={shipment.scancode} className="border-none">
       <Card className="overflow-hidden transition-all duration-300 hover:shadow-xl focus-within:shadow-xl data-[state=open]:shadow-xl">
@@ -68,7 +72,7 @@ export function ShipmentCard({ shipment }: { shipment: Shipment }) {
                 <DateItem label="Pickup" ideal={shipment.pickupIdealDate} actual={shipment.pickupActualDate} />
                 <DateItem label="Gateway" ideal={shipment.connectedToGatewayIdealDate} actual={shipment.connectedToGatewayActualDate} />
                 <DateItem label="Injected" ideal={shipment.injectedIdealDate} actual={shipment.injectedActualDate} />
-                <DateItem label="Delivered" ideal={shipment.deliveredIdealDate} actual={shipment.deliveredActualDate} />
+                <DateItem label="Delivered" ideal={shipment.deliveredIdealDate} actual={shipment.deliveredActualDate} forceIdeal={true} />
               </div>
               
               <div className="col-span-full md:col-start-1 md:col-span-3 flex md:flex-col gap-4 md:gap-2 pt-2 md:pt-0 border-t md:border-none mt-2 md:mt-0">
@@ -89,9 +93,9 @@ export function ShipmentCard({ shipment }: { shipment: Shipment }) {
             <h3 className="text-lg font-semibold mb-6 text-primary font-headline">Shipment Timeline</h3>
             <div className="relative pl-4">
               <div className="absolute left-[23px] top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
-              {shipment.timeline.length > 0 ? (
-                shipment.timeline.map((node, index) => (
-                  <TimelineNode key={index} node={node} isLast={index === shipment.timeline.length - 1} />
+              {timelineWithoutDelivered.length > 0 ? (
+                timelineWithoutDelivered.map((node, index) => (
+                  <TimelineNode key={index} node={node} isLast={index === timelineWithoutDelivered.length - 1} />
                 ))
               ) : (
                 <p className="text-muted-foreground">No timeline data available for this shipment.</p>
@@ -136,10 +140,10 @@ const TimelineNode = ({ node, isLast }: { node: ShipmentNode, isLast: boolean })
                 </div>
             </div>
             <div className="flex-1 pt-1">
-                <p className="font-semibold text-foreground flex items-center gap-2">
+                <div className="font-semibold text-foreground flex items-center gap-2">
                     {node.name}
                     {hasActual && (isDelayed ? <Badge variant="destructive">Delayed</Badge> : <Badge className="bg-chart-2 text-primary-foreground hover:bg-chart-2/90">On Time</Badge>)}
-                </p>
+                </div>
                 <div className="flex flex-col sm:flex-row sm:gap-6 text-sm mt-1">
                     <p className="text-muted-foreground">
                         <span className="font-medium">Ideal:</span> {node.idealDate}
