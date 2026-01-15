@@ -35,6 +35,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
   const commentsQuery = useMemo(() => {
     if (!firestore) return null;
     const commentsPath = `shipments/${shipmentScancode}/node_comments`;
+    // Query comments for the specific node.
     return query(
         collection(firestore, commentsPath),
         where('nodeName', '==', nodeName)
@@ -45,6 +46,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
   
   const nodeComments = useMemo(() => {
     if (!comments) return [];
+    // Map snapshot docs to comment objects and sort them client-side.
     const sortedComments = comments.map(doc => ({ id: doc.id, ...doc.data() } as NodeComment));
     sortedComments.sort((a, b) => {
         const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
@@ -71,7 +73,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     const commentData = {
       authorName: authorName.trim(),
       message: newComment.trim(),
-      nodeName: nodeName,
+      nodeName: nodeName, // Explicitly save the nodeName
       createdAt: serverTimestamp(),
     };
 
@@ -183,7 +185,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
                       <Button type="submit" size="sm" disabled={isSubmitting}>
                         {isSubmitting ? 'Submitting...' : 'Submit Remark'}
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setFormIsOpen(false)}>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setFormIsOpen(false)}>
                         Cancel
                       </Button>
                     </div>
