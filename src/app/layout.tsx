@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'Shipment Pulse',
+  title: 'Shipment Journey Tracker',
   description: 'Track your shipments in real-time.',
 };
 

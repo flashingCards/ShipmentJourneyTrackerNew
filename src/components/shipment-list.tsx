@@ -23,7 +23,7 @@ export function ShipmentList({ initialShipments }: { initialShipments: Shipment[
 
   return (
     <div className="w-full">
-      <div className="flex justify-end mb-6">
+      <div className="flex justify-center mb-6">
         <Button onClick={handleRefresh} disabled={isPending} variant="outline" className="bg-background">
           <RefreshCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
           {isPending ? 'Refreshing...' : 'Refresh Data'}

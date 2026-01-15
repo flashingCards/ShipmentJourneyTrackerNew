@@ -12,11 +12,11 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="container mx-auto px-4 py-4 flex justify-center items-center">
           <div className="flex items-center gap-2">
             <Package className="h-6 w-6 text-primary" />
             <h1 className="text-2xl font-bold text-primary font-headline">
-              Shipment Pulse
+              Shipment Journey Tracker
             </h1>
           </div>
         </div>
@@ -33,7 +33,7 @@ export default async function Home() {
 function ShipmentListSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-center mb-4">
         <Skeleton className="h-10 w-36" />
       </div>
       {[...Array(3)].map((_, i) => (
