@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirestore } from '@/firebase/provider';
 import { collection, addDoc, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
@@ -23,6 +23,10 @@ interface CommentBoxProps {
   nodeName: string;
 }
 
+const generateRandomName = () => {
+    return `Visitor ${Math.floor(Math.random() * 9000) + 1000}`;
+}
+
 export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -31,6 +35,21 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [formIsOpen, setFormIsOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+        let sessionName = sessionStorage.getItem('shipment_tracker_username');
+        if (!sessionName) {
+            sessionName = generateRandomName();
+            sessionStorage.setItem('shipment_tracker_username', sessionName);
+        }
+        setAuthorName(sessionName);
+    } catch (error) {
+        // This can happen in SSR or if sessionStorage is disabled.
+        // Fallback to a non-persistent random name.
+        setAuthorName(generateRandomName());
+    }
+  }, []);
 
   const commentsQuery = useMemo(() => {
     if (!firestore) return null;
@@ -46,7 +65,9 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
   
   const nodeComments = useMemo(() => {
     if (!comments) return [];
-    return comments.map(doc => ({ id: doc.id, ...doc.data() } as NodeComment));
+    const sortedComments = comments.map(doc => ({ id: doc.id, ...doc.data() } as NodeComment));
+    // The query now handles ordering by 'createdAt'. If not, we could sort here.
+    return sortedComments;
   }, [comments]);
 
 
@@ -75,15 +96,13 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     addDoc(commentsCollection, commentData)
       .then(() => {
         setNewComment('');
-        setAuthorName('');
-        setFormIsOpen(false);
+        setFormIsOpen(false); // Close form on success
         toast({
           title: 'Comment Added',
           description: 'Your comment has been successfully submitted.',
         });
       })
       .catch((err) => {
-        console.error('Error adding document: ', err);
         const permissionError = new FirestorePermissionError({
           path: commentsPath,
           operation: 'create',
