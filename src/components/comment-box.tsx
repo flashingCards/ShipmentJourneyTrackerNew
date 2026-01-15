@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirestore } from '@/firebase/provider';
-import { collection, addDoc, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -54,10 +54,10 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
   const commentsQuery = useMemo(() => {
     if (!firestore) return null;
     const commentsPath = `shipments/${shipmentScancode}/node_comments`;
+    // Removed orderBy for performance. Sorting will be done on the client.
     return query(
         collection(firestore, commentsPath),
-        where('nodeName', '==', nodeName),
-        orderBy('createdAt', 'desc')
+        where('nodeName', '==', nodeName)
     );
   }, [firestore, shipmentScancode, nodeName]);
 
@@ -66,7 +66,12 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
   const nodeComments = useMemo(() => {
     if (!comments) return [];
     const sortedComments = comments.map(doc => ({ id: doc.id, ...doc.data() } as NodeComment));
-    // The query now handles ordering by 'createdAt'. If not, we could sort here.
+    // Sort on the client side
+    sortedComments.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        return dateB.getTime() - dateA.getTime();
+    });
     return sortedComments;
   }, [comments]);
 
