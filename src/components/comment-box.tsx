@@ -3,15 +3,15 @@
 import React, { useMemo, useState } from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirestore } from '@/firebase/provider';
-import { collection, addDoc, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { MessageSquarePlus, ChevronsUpDown } from 'lucide-react';
+import { ChevronsUpDown, MessageSquarePlus } from 'lucide-react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { useToast } from '@/hooks/use-toast';
@@ -30,22 +30,30 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
   const [authorName, setAuthorName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [formIsOpen, setFormIsOpen] = useState(false);
 
+  // Simplified query for better performance. Sorting is now handled client-side.
   const commentsQuery = useMemo(() => {
     if (!firestore) return null;
     const commentsPath = `shipments/${shipmentScancode}/node_comments`;
-    // Query for comments specific to this node
     return query(
         collection(firestore, commentsPath),
-        where('nodeName', '==', nodeName),
-        orderBy('createdAt', 'desc')
+        where('nodeName', '==', nodeName)
     );
   }, [firestore, shipmentScancode, nodeName]);
 
   const { data: comments, loading, error } = useCollection<Omit<NodeComment, 'id'>>(commentsQuery);
   
+  // Sort comments on the client-side
   const nodeComments = useMemo(() => {
-    return comments?.map(doc => ({ id: doc.id, ...doc.data() } as NodeComment));
+    if (!comments) return [];
+    const mappedComments = comments.map(doc => ({ id: doc.id, ...doc.data() } as NodeComment));
+    return mappedComments.sort((a, b) => {
+      if (a.createdAt && b.createdAt) {
+        return b.createdAt.toDate() - a.createdAt.toDate();
+      }
+      return 0; // Keep original order if timestamps are missing
+    });
   }, [comments]);
 
 
@@ -72,8 +80,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     addDoc(collection(firestore, commentsPath), commentData)
       .then(() => {
         setNewComment('');
-        // Don't close automatically, let the user decide.
-        // setIsOpen(false); 
+        setFormIsOpen(false); // Close form on success
         toast({
           title: 'Comment Added',
           description: 'Your comment has been successfully submitted.',
@@ -147,25 +154,39 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
                 ) : null}
                </div>
 
-              <form onSubmit={handleAddComment} className="space-y-3 mt-4 border-t pt-4">
-                  <Input
-                    placeholder="Your Name"
-                    value={authorName}
-                    onChange={(e) => setAuthorName(e.target.value)}
-                    className="bg-background"
-                    required
-                  />
-                  <Textarea
-                    placeholder="Add a remark..."
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    className="bg-background"
-                    required
-                  />
-                  <Button type="submit" size="sm" disabled={isSubmitting}>
-                    {isSubmitting ? 'Submitting...' : 'Submit Remark'}
+              {!formIsOpen ? (
+                <div className="border-t pt-4 mt-4">
+                  <Button variant="outline" size="sm" onClick={() => setFormIsOpen(true)}>
+                    <MessageSquarePlus className="mr-2 h-4 w-4" />
+                    Add a Remark
                   </Button>
-              </form>
+                </div>
+              ) : (
+                <form onSubmit={handleAddComment} className="space-y-3 mt-4 border-t pt-4">
+                    <Input
+                      placeholder="Your Name"
+                      value={authorName}
+                      onChange={(e) => setAuthorName(e.target.value)}
+                      className="bg-background"
+                      required
+                    />
+                    <Textarea
+                      placeholder="Add a remark..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      className="bg-background"
+                      required
+                    />
+                    <div className="flex gap-2">
+                      <Button type="submit" size="sm" disabled={isSubmitting}>
+                        {isSubmitting ? 'Submitting...' : 'Submit Remark'}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setFormIsOpen(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                </form>
+              )}
             </CardContent>
         </CollapsibleContent>
       </Card>
