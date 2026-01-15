@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirestore } from '@/firebase/provider';
-import { collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,6 +15,7 @@ import { MessageSquarePlus, ChevronsUpDown } from 'lucide-react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { useToast } from '@/hooks/use-toast';
+import type { NodeComment } from '@/lib/types';
 
 
 interface CommentBoxProps {
@@ -33,14 +34,19 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
   const commentsQuery = useMemo(() => {
     if (!firestore) return null;
     const commentsPath = `shipments/${shipmentScancode}/node_comments`;
-    return query(collection(firestore, commentsPath), orderBy('createdAt', 'desc'));
-  }, [firestore, shipmentScancode]);
+    // Query for comments specific to this node
+    return query(
+        collection(firestore, commentsPath),
+        where('nodeName', '==', nodeName),
+        orderBy('createdAt', 'desc')
+    );
+  }, [firestore, shipmentScancode, nodeName]);
 
-  const { data: comments, loading, error } = useCollection(commentsQuery);
+  const { data: comments, loading, error } = useCollection<Omit<NodeComment, 'id'>>(commentsQuery);
   
   const nodeComments = useMemo(() => {
-    return comments?.map(doc => ({ id: doc.id, ...doc.data() })).filter(comment => comment.nodeName === nodeName);
-  }, [comments, nodeName]);
+    return comments?.map(doc => ({ id: doc.id, ...doc.data() } as NodeComment));
+  }, [comments]);
 
 
   const handleAddComment = (e: React.FormEvent) => {
@@ -66,7 +72,8 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     addDoc(collection(firestore, commentsPath), commentData)
       .then(() => {
         setNewComment('');
-        setIsOpen(false); // Collapse after submitting
+        // Don't close automatically, let the user decide.
+        // setIsOpen(false); 
         toast({
           title: 'Comment Added',
           description: 'Your comment has been successfully submitted.',
@@ -80,11 +87,6 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
           requestResourceData: commentData,
         });
         errorEmitter.emit('permission-error', permissionError);
-        toast({
-          variant: 'destructive',
-          title: 'Uh oh! Something went wrong.',
-          description: 'Failed to add comment. Please try again.',
-        });
       })
       .finally(() => {
         setIsSubmitting(false);
@@ -114,12 +116,10 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
                </div>
             )}
             {!loading && nodeComments && nodeComments.length > 0 ? (
-              nodeComments.slice(0,1).map((comment) => ( // Show only the latest comment when collapsed
-                <div key={comment.id} className="text-sm p-2 rounded-md bg-background/50 truncate">
-                  <span className="font-semibold text-foreground">{comment.authorName}:</span>
-                  <span className="ml-2 text-muted-foreground">{comment.message}</span>
-                </div>
-              ))
+              <div className="text-sm p-2 rounded-md bg-background/50 truncate">
+                <span className="font-semibold text-foreground">{nodeComments[0].authorName}:</span>
+                <span className="ml-2 text-muted-foreground">{nodeComments[0].message}</span>
+              </div>
             ) : (
               !loading && <p className="text-xs text-muted-foreground text-center py-1">No remarks yet.</p>
             )}
@@ -135,7 +135,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
                     <div key={comment.id} className="text-sm p-3 rounded-md bg-background/50">
                         <div className="flex justify-between items-baseline">
                         <p className="font-semibold text-foreground">{comment.authorName}</p>
-                        {comment.createdAt && (
+                        {comment.createdAt && comment.createdAt.toDate && (
                             <p className="text-xs text-muted-foreground">
                                 {formatDistanceToNow(comment.createdAt.toDate(), { addSuffix: true })}
                             </p>
@@ -156,14 +156,14 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
                     required
                   />
                   <Textarea
-                    placeholder="Add a comment..."
+                    placeholder="Add a remark..."
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     className="bg-background"
                     required
                   />
                   <Button type="submit" size="sm" disabled={isSubmitting}>
-                    {isSubmitting ? 'Submitting...' : 'Submit Comment'}
+                    {isSubmitting ? 'Submitting...' : 'Submit Remark'}
                   </Button>
               </form>
             </CardContent>
