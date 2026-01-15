@@ -3,13 +3,10 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
-  useState,
   type ReactNode,
 } from 'react';
 import {type FirebaseApp} from 'firebase/app';
-import {onIdTokenChanged, type Auth, type User} from 'firebase/auth';
 import {type Firestore} from 'firebase/firestore';
 
 import {FirebaseErrorListener} from '@/components/FirebaseErrorListener';
@@ -17,8 +14,6 @@ import {FirebaseErrorListener} from '@/components/FirebaseErrorListener';
 interface FirebaseContextValue {
   app: FirebaseApp;
   firestore: Firestore;
-  auth: Auth;
-  currentUser: User | null | undefined;
 }
 
 const FirebaseContext = createContext<FirebaseContextValue | undefined>(
@@ -29,7 +24,6 @@ interface Props {
   children: ReactNode;
   app: FirebaseApp;
   firestore: Firestore;
-  auth: Auth;
 }
 
 /**
@@ -39,25 +33,17 @@ interface Props {
  * @param props.children The children to render.
  * @param props.app The Firebase app instance.
  * @param props.firestore The Firestore instance.
- * @param props.auth The Auth instance.
  * @returns The rendered component.
  */
-export function FirebaseProvider({children, app, firestore, auth}: Props) {
-  const [user, setUser] = useState<User | null>();
+export function FirebaseProvider({children, app, firestore}: Props) {
 
   const contextValue = useMemo(
     () => ({
       app,
       firestore,
-      auth,
-      currentUser: user,
     }),
-    [app, firestore, auth, user]
+    [app, firestore]
   );
-
-  useEffect(() => {
-    return onIdTokenChanged(auth, setUser);
-  }, [auth]);
 
   return (
     <FirebaseContext.Provider value={contextValue}>
@@ -100,14 +86,4 @@ export function useFirebaseApp() {
  */
 export function useFirestore() {
   return useFirebase().firestore;
-}
-
-/**
- * Returns the Auth instance.
- *
- * @returns The Auth instance.
- * @throws if the hook is used outside of a {@link FirebaseProvider}.
- */
-export function useAuth() {
-  return useFirebase().auth;
 }
