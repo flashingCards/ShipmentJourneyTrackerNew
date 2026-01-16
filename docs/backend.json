@@ -17,9 +17,13 @@
           "type": "string",
           "format": "date-time",
           "description": "The timestamp when the comment was created."
+        },
+        "nodeName": {
+          "type": "string",
+          "description": "The name of the timeline node this comment is associated with."
         }
       },
-      "required": ["authorName", "message", "createdAt"]
+      "required": ["authorName", "message", "createdAt", "nodeName"]
     }
   },
   "auth": {

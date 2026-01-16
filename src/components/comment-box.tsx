@@ -57,7 +57,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
   }, [comments]);
 
 
-  const handleAddComment = (e: React.FormEvent) => {
+  const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firestore || newComment.trim() === '' || authorName.trim() === '') {
       toast({
@@ -73,24 +73,22 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     const commentData = {
       authorName: authorName.trim(),
       message: newComment.trim(),
-      nodeName: nodeName, // Explicitly save the nodeName
+      nodeName: nodeName,
       createdAt: serverTimestamp(),
     };
 
-    const commentsCollection = collection(firestore, commentsPath);
-
-    addDoc(commentsCollection, commentData)
-      .then(() => {
-        setNewComment('');
-        // We don't clear authorName as they might want to post again
-        setFormIsOpen(false); // Close form on success
-        toast({
-          title: 'Comment Added',
-          description: 'Your comment has been successfully submitted.',
-        });
-      })
-      .catch((err) => {
-        // Exclude serverTimestamp from the data passed to the error context
+    try {
+      const commentsCollection = collection(firestore, commentsPath);
+      await addDoc(commentsCollection, commentData);
+      
+      setNewComment('');
+      setAuthorName('');
+      setFormIsOpen(false);
+      toast({
+        title: 'Comment Added',
+        description: 'Your comment has been successfully submitted.',
+      });
+    } catch (err) {
         const { createdAt, ...resourceData } = commentData;
         const permissionError = new FirestorePermissionError({
           path: commentsPath,
@@ -98,10 +96,14 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
           requestResourceData: resourceData,
         });
         errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
-        setIsSubmitting(false);
-      });
+        toast({
+            variant: "destructive",
+            title: "Submission Failed",
+            description: "Could not save your comment. Please try again.",
+        });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -118,14 +120,6 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
             </CollapsibleTrigger>
           </div>
           <div className="mt-2 space-y-3">
-            {loading && (
-               <div className="space-y-3">
-                  <div className="flex items-start space-x-3">
-                      <Skeleton className="h-4 w-20" />
-                      <Skeleton className="h-4 w-4/5" />
-                  </div>
-               </div>
-            )}
             {!loading && nodeComments && nodeComments.length > 0 ? (
               <div className="text-sm p-2 rounded-md bg-background/50 truncate">
                 <span className="font-semibold text-foreground">{nodeComments[0].authorName}:</span>
