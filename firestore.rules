@@ -1,8 +1,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Rule for single document operations (get, create, update, delete)
     match /shipments/{shipmentId}/node_comments/{commentId} {
-      allow read, write: if true;
+      allow get, write: if true;
+    }
+
+    // Rule for collection query operations (list)
+    match /shipments/{shipmentId}/node_comments {
+      allow list: if true;
     }
   }
 }
