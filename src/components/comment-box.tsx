@@ -67,7 +67,8 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     }
   }, [isUserLoading, user, auth]);
 
-  // Memoize the Firestore query, removing orderBy to avoid composite index requirement
+  // Memoize the Firestore query.
+  // REMOVED `orderBy` to avoid needing a composite index, which often causes a "permission denied" error.
   const commentsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     const commentsCollectionRef = collection(
@@ -76,12 +77,25 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     );
     return query(
         commentsCollectionRef,
-        where('nodeName', '==', nodeName),
-        orderBy('createdAt', 'desc')
+        where('nodeName', '==', nodeName)
     );
   }, [firestore, shipmentScancode, nodeName]);
 
   const { data: comments, isLoading: areCommentsLoading, error } = useCollection<Comment>(commentsQuery);
+  
+  // Sort comments on the client-side to ensure chronological order.
+  const sortedComments = useMemo(() => {
+    if (!comments) return [];
+    return [...comments].sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+            return b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime();
+        }
+        if (!a.createdAt && b.createdAt) return 1; // a is new, b is old, b should be first
+        if (a.createdAt && !b.createdAt) return -1; // a is old, b is new, a should be first
+        return 0;
+    });
+  }, [comments]);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,7 +160,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
       className="mt-4 w-full space-y-4 rounded-lg border bg-card/50 p-4"
     >
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-semibold">Remarks ({comments?.length ?? 0})</h4>
+        <h4 className="text-sm font-semibold">Remarks ({sortedComments?.length ?? 0})</h4>
       </div>
       
       <div className="space-y-4">
@@ -159,10 +173,10 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
         {!areCommentsLoading && error && (
           <p className="text-xs text-destructive">Error loading remarks.</p>
         )}
-        {!areCommentsLoading && !error && comments?.length === 0 && (
+        {!areCommentsLoading && !error && sortedComments?.length === 0 && (
           <p className="text-xs text-muted-foreground">No remarks yet.</p>
         )}
-        {comments?.map((comment) => (
+        {sortedComments?.map((comment) => (
           <div key={comment.id} className="flex items-start gap-3 text-sm">
             <Avatar className="h-8 w-8 border">
                 <AvatarFallback>{getInitials(comment.authorName)}</AvatarFallback>
