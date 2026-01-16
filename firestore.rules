@@ -2,11 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /shipments/{shipmentId}/node_comments/{commentId} {
-      // Allow anyone to read comments
-      allow read: if true;
-      // Allow anyone signed in (including anonymously) to create comments
-      allow create: if request.auth != null;
-      // Disallow updates and deletes for now for simplicity
+      // Allow anyone to read and create comments.
+      // This is safe for this public-facing feature.
+      allow read, create: if true;
+
+      // Disallow updates and deletes for now for simplicity.
       allow update, delete: if false;
     }
   }

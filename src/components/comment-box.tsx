@@ -84,14 +84,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication Error',
-        description: 'You must be signed in to comment.',
-      });
-      return;
-    }
+    
     if (message.trim() === '' || authorName.trim() === '') {
       toast({
         variant: 'destructive',
@@ -110,7 +103,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     const collectionRef = collection(firestore, `shipments/${shipmentScancode}/node_comments`);
     
     const newComment = {
-      authorId: user.uid,
+      authorId: user?.uid || 'anonymous',
       authorName: authorName.trim(),
       message: message.trim(),
       nodeName,
@@ -195,7 +188,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
                         onChange={(e) => setAuthorName(e.target.value)}
                         className="bg-background h-8"
                         required
-                        disabled={isSubmitting || isUserLoading}
+                        disabled={isSubmitting}
                     />
                     <Textarea
                         placeholder="Post a new remark..."
@@ -203,12 +196,12 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
                         onChange={(e) => setMessage(e.target.value)}
                         className="bg-background min-h-[60px]"
                         required
-                        disabled={isSubmitting || isUserLoading || !user}
+                        disabled={isSubmitting}
                     />
                 </div>
             </div>
             <div className="flex justify-end">
-                <Button type="submit" size="sm" disabled={isSubmitting || isUserLoading || !user}>
+                <Button type="submit" size="sm" disabled={isSubmitting}>
                     {isSubmitting ? 'Posting...' : 'Post Comment'}
                     <Send className="ml-2 h-4 w-4" />
                 </Button>
