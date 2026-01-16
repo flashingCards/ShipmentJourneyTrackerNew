@@ -148,20 +148,24 @@ const TimelineNode = ({ node, isLast, shipmentScancode }: { node: ShipmentNodeTy
                     <NodeIcon className={cn("h-5 w-5", hasActual ? "text-primary" : "text-muted-foreground")} />
                 </div>
             </div>
-            <div className="flex-1 pt-1">
-                <div className="font-semibold text-foreground flex items-center gap-2">
-                    {node.name}
-                    {hasActual && (isDelayed ? <Badge variant="destructive">Delayed</Badge> : <Badge className="bg-chart-2 text-primary-foreground hover:bg-chart-2/90">On Time</Badge>)}
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 pt-1">
+                    <div className="font-semibold text-foreground flex items-center gap-2">
+                        {node.name}
+                        {hasActual && (isDelayed ? <Badge variant="destructive">Delayed</Badge> : <Badge className="bg-chart-2 text-primary-foreground hover:bg-chart-2/90">On Time</Badge>)}
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:gap-6 text-sm mt-1">
+                        <p className="text-muted-foreground">
+                            <span className="font-medium">Ideal:</span> {node.idealDate}
+                        </p>
+                        <p className={hasActual ? (isDelayed ? 'text-destructive' : 'text-chart-2') : 'text-muted-foreground'}>
+                            <span className="font-medium">Actual:</span> {node.actualDate}
+                        </p>
+                    </div>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:gap-6 text-sm mt-1">
-                    <p className="text-muted-foreground">
-                        <span className="font-medium">Ideal:</span> {node.idealDate}
-                    </p>
-                    <p className={hasActual ? (isDelayed ? 'text-destructive' : 'text-chart-2') : 'text-muted-foreground'}>
-                        <span className="font-medium">Actual:</span> {node.actualDate}
-                    </p>
+                <div className="lg:col-span-1">
+                    <CommentBox shipmentScancode={shipmentScancode} nodeName={node.name} />
                 </div>
-                <CommentBox shipmentScancode={shipmentScancode} nodeName={node.name} />
             </div>
         </div>
     );
