@@ -33,6 +33,7 @@ export type Shipment = {
 
 export interface NodeComment {
   id: string;
+  authorId: string;
   authorName: string;
   message: string;
   createdAt: any; // Using `any` for Firebase Timestamp flexibility

@@ -5,15 +5,21 @@ import {
   useContext,
   useMemo,
   type ReactNode,
+  useState,
+  useEffect,
 } from 'react';
 import {type FirebaseApp} from 'firebase/app';
 import {type Firestore} from 'firebase/firestore';
+import { type Auth, type User, onAuthStateChanged } from 'firebase/auth';
 
 import {FirebaseErrorListener} from '@/components/FirebaseErrorListener';
 
 interface FirebaseContextValue {
   app: FirebaseApp;
   firestore: Firestore;
+  auth: Auth;
+  currentUser: User | null;
+  isUserLoading: boolean;
 }
 
 const FirebaseContext = createContext<FirebaseContextValue | undefined>(
@@ -24,25 +30,30 @@ interface Props {
   children: ReactNode;
   app: FirebaseApp;
   firestore: Firestore;
+  auth: Auth;
 }
 
-/**
- * Provides the Firebase context to its children.
- *
- * @param props The component props.
- * @param props.children The children to render.
- * @param props.app The Firebase app instance.
- * @param props.firestore The Firestore instance.
- * @returns The rendered component.
- */
-export function FirebaseProvider({children, app, firestore}: Props) {
+export function FirebaseProvider({children, app, firestore, auth}: Props) {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isUserLoading, setIsUserLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setIsUserLoading(false);
+    });
+    return () => unsubscribe();
+  }, [auth]);
 
   const contextValue = useMemo(
     () => ({
       app,
       firestore,
+      auth,
+      currentUser,
+      isUserLoading,
     }),
-    [app, firestore]
+    [app, firestore, auth, currentUser, isUserLoading]
   );
 
   return (
@@ -53,12 +64,6 @@ export function FirebaseProvider({children, app, firestore}: Props) {
   );
 }
 
-/**
- * Returns the Firebase context value.
- *
- * @returns The Firebase context value.
- * @throws if the hook is used outside of a {@link FirebaseProvider}.
- */
 export function useFirebase() {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
@@ -67,23 +72,19 @@ export function useFirebase() {
   return context;
 }
 
-/**
- * Returns the Firebase app instance.
- *
- * @returns The Firebase app instance.
- * @throws if the hook is used outside of a {@link FirebaseProvider}.
- */
 export function useFirebaseApp() {
   return useFirebase().app;
 }
 
-/**
- * Returns the Firestore instance.
- *
-
- * @returns The Firestore instance.
- * @throws if the hook is used outside of a {@link FirebaseProvider}.
- */
 export function useFirestore() {
   return useFirebase().firestore;
+}
+
+export function useAuth() {
+  return useFirebase().auth;
+}
+
+export function useUser() {
+  const { currentUser, isUserLoading } = useFirebase();
+  return { user: currentUser, isLoading: isUserLoading };
 }

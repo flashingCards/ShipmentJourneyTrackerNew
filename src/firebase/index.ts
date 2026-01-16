@@ -8,6 +8,7 @@ export * from './firestore/use-doc';
 export * from './firestore/use-collection';
 export * from './firestore/use-memo-firebase';
 export * from './firestore/non-blocking-updates';
+export * from './auth/non-blocking-auth';
 
 /**
  * Initializes the Firebase app.

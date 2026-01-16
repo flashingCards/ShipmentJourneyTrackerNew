@@ -2,6 +2,7 @@
 import {useEffect, useState} from 'react';
 import {type FirebaseApp} from 'firebase/app';
 import {Firestore, getFirestore} from 'firebase/firestore';
+import {Auth, getAuth} from 'firebase/auth'; 
 
 import {initializeFirebase} from '@/firebase';
 
@@ -10,6 +11,7 @@ import {Spinner} from './Spinner';
 
 let app: FirebaseApp;
 let firestore: Firestore;
+let auth: Auth; 
 
 /**
  * Initializes Firebase on the client side and provides the Firebase context.
@@ -34,6 +36,7 @@ export function FirebaseClientProvider({children}: {children: React.ReactNode}) 
     const result = initializeFirebase();
     app = result.app;
     firestore = getFirestore(app);
+    auth = getAuth(app); 
     setIsInitialized(true);
   }, [isInitialized]);
 
@@ -42,7 +45,7 @@ export function FirebaseClientProvider({children}: {children: React.ReactNode}) 
   }
 
   return (
-    <FirebaseProvider app={app} firestore={firestore}>
+    <FirebaseProvider app={app} firestore={firestore} auth={auth}>
       {children}
     </FirebaseProvider>
   );
