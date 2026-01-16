@@ -1,18 +1,23 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  where,
+  serverTimestamp,
+  orderBy,
+  Timestamp,
+} from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { collection, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
+import type { NodeComment } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
-import { formatDistanceToNow } from 'date-fns';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronsUpDown, MessageSquarePlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { NodeComment } from '@/lib/types';
+import { formatDistanceToNow } from 'date-fns';
 
 
 interface CommentBoxProps {
@@ -20,43 +25,67 @@ interface CommentBoxProps {
   nodeName: string;
 }
 
+// Redefine type locally for clarity, ensuring it matches lib/types.ts
+interface Comment extends Omit<NodeComment, 'createdAt'> {
+  createdAt: Timestamp | null;
+}
+
 export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [newComment, setNewComment] = useState('');
+
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [authorName, setAuthorName] = useState('');
+  const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [formIsOpen, setFormIsOpen] = useState(false);
 
-  const commentsQuery = useMemo(() => {
+  const commentsCollectionRef = useMemo(() => {
     if (!firestore) return null;
-    const commentsPath = `shipments/${shipmentScancode}/node_comments`;
-    // Query comments for the specific node.
-    return query(
-        collection(firestore, commentsPath),
-        where('nodeName', '==', nodeName)
+    return collection(firestore, `shipments/${shipmentScancode}/node_comments`);
+  }, [firestore, shipmentScancode]);
+
+  useEffect(() => {
+    if (!commentsCollectionRef) {
+        setLoading(false);
+        return;
+    };
+
+    const q = query(
+      commentsCollectionRef,
+      where('nodeName', '==', nodeName),
+      orderBy('createdAt', 'desc')
     );
-  }, [firestore, shipmentScancode, nodeName]);
 
-  const { data: comments, loading, error } = useCollection<Omit<NodeComment, 'id'>>(commentsQuery);
-  
-  const nodeComments = useMemo(() => {
-    if (!comments) return [];
-    // Map snapshot docs to comment objects and sort them client-side.
-    const sortedComments = comments.map(doc => ({ id: doc.id, ...doc.data() } as NodeComment));
-    sortedComments.sort((a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
-        return dateB.getTime() - dateA.getTime();
-    });
-    return sortedComments;
-  }, [comments]);
+    setLoading(true);
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        const commentsData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Comment[];
+        setComments(commentsData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching comments: ', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error loading comments',
+          description: 'Could not retrieve remarks for this node. Check the console for more details.',
+        });
+        setLoading(false);
+      }
+    );
 
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, [commentsCollectionRef, nodeName, toast]);
 
-  const handleAddComment = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firestore || newComment.trim() === '' || authorName.trim() === '') {
+    if (message.trim() === '' || authorName.trim() === '' || !commentsCollectionRef) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
@@ -66,121 +95,86 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     }
 
     setIsSubmitting(true);
-    const commentsPath = `shipments/${shipmentScancode}/node_comments`;
-    const commentsCollection = collection(firestore, commentsPath);
-    
-    const commentData = {
-      authorName: authorName.trim(),
-      message: newComment.trim(),
-      nodeName: nodeName,
-      createdAt: serverTimestamp(),
-    };
 
-    addDoc(commentsCollection, commentData)
-      .then(() => {
-        toast({
-          title: 'Comment Added',
-          description: 'Your remark has been successfully submitted.',
-        });
-        setNewComment('');
-        setAuthorName('');
-        setFormIsOpen(false); 
-      })
-      .catch((error) => {
-        console.error("Error adding document: ", error);
-        toast({
-          variant: "destructive",
-          title: "Submission Failed",
-          description: error.message || "Could not save your comment. Please try again.",
-        });
-      })
-      .finally(() => {
-        setIsSubmitting(false);
+    try {
+      await addDoc(commentsCollectionRef, {
+        authorName: authorName.trim(),
+        message: message.trim(),
+        nodeName: nodeName,
+        createdAt: serverTimestamp(),
       });
+      
+      // Clear form
+      setAuthorName('');
+      setMessage('');
+
+      toast({
+        title: 'Success!',
+        description: 'Your remark has been submitted.',
+      });
+
+    } catch (error) {
+      console.error('Error adding document: ', error);
+      toast({
+        variant: 'destructive',
+        title: 'Submission Failed',
+        description: 'There was an error saving your remark. Please check the console and try again.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-4 w-full">
-      <Card className="bg-card/50 border-dashed">
-        <div className="p-4">
-          <div className="flex justify-between items-center">
-            <h4 className="text-sm font-medium">Remarks ({loading ? '...' : nodeComments?.length ?? 0})</h4>
-             <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="w-auto p-2 h-auto">
-                    <ChevronsUpDown className="h-4 w-4" />
-                    <span className="sr-only">Toggle comment section</span>
-                </Button>
-            </CollapsibleTrigger>
-          </div>
-          <div className="mt-2 space-y-3">
-            {!loading && nodeComments && nodeComments.length > 0 ? (
-              <div className="text-sm p-2 rounded-md bg-background/50 truncate">
-                <span className="font-semibold text-foreground">{nodeComments[0].authorName}:</span>
-                <span className="ml-2 text-muted-foreground">{nodeComments[0].message}</span>
-              </div>
-            ) : (
-              !loading && <p className="text-xs text-muted-foreground text-center py-1">No remarks yet.</p>
-            )}
-             {error && <p className="text-xs text-destructive text-center py-2">Error loading comments.</p>}
-          </div>
-        </div>
+    <div className="mt-4 w-full space-y-4 rounded-lg border border-dashed bg-card/50 p-4">
+      <h4 className="text-sm font-medium">Remarks</h4>
+      
+      {/* Comment Submission Form */}
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <Input
+          placeholder="Your Name"
+          value={authorName}
+          onChange={(e) => setAuthorName(e.target.value)}
+          className="bg-background"
+          required
+          disabled={isSubmitting}
+        />
+        <Textarea
+          placeholder="Add a remark..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className="bg-background"
+          required
+          disabled={isSubmitting}
+        />
+        <Button type="submit" size="sm" disabled={isSubmitting}>
+          {isSubmitting ? 'Submitting...' : 'Submit Remark'}
+        </Button>
+      </form>
 
-        <CollapsibleContent>
-            <CardContent className="p-4 pt-0">
-               <div className="mt-4 space-y-3 max-h-48 overflow-y-auto">
-                {!loading && nodeComments && nodeComments.length > 0 ? (
-                    nodeComments.map((comment) => (
-                    <div key={comment.id} className="text-sm p-3 rounded-md bg-background/50">
-                        <div className="flex justify-between items-baseline">
-                        <p className="font-semibold text-foreground">{comment.authorName}</p>
-                        {comment.createdAt && comment.createdAt.toDate && (
-                            <p className="text-xs text-muted-foreground">
-                                {formatDistanceToNow(comment.createdAt.toDate(), { addSuffix: true })}
-                            </p>
-                        )}
-                        </div>
-                        <p className="mt-1 text-muted-foreground break-words">{comment.message}</p>
-                    </div>
-                    ))
-                ) : null}
-               </div>
+      {/* Divider */}
+      <div className="border-t border-border"></div>
 
-              {!formIsOpen ? (
-                <div className="border-t pt-4 mt-4">
-                  <Button variant="outline" size="sm" onClick={() => setFormIsOpen(true)}>
-                    <MessageSquarePlus className="mr-2 h-4 w-4" />
-                    Add a Remark
-                  </Button>
-                </div>
-              ) : (
-                <form onSubmit={handleAddComment} className="space-y-3 mt-4 border-t pt-4">
-                    <Input
-                      placeholder="Your Name"
-                      value={authorName}
-                      onChange={(e) => setAuthorName(e.target.value)}
-                      className="bg-background"
-                      required
-                    />
-                    <Textarea
-                      placeholder="Add a remark..."
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      className="bg-background"
-                      required
-                    />
-                    <div className="flex gap-2">
-                      <Button type="submit" size="sm" disabled={isSubmitting}>
-                        {isSubmitting ? 'Submitting...' : 'Submit Remark'}
-                      </Button>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => setFormIsOpen(false)}>
-                        Cancel
-                      </Button>
-                    </div>
-                </form>
-              )}
-            </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+      {/* Display Comments */}
+      <div className="space-y-3">
+        {loading && <p className="text-xs text-muted-foreground">Loading remarks...</p>}
+        {!loading && comments.length === 0 && (
+          <p className="text-xs text-muted-foreground">No remarks yet.</p>
+        )}
+        {comments.map((comment) => (
+          <div key={comment.id} className="text-sm rounded-md bg-background/50 p-3">
+            <div className="flex items-baseline justify-between">
+              <p className="font-semibold text-foreground">{comment.authorName}</p>
+              <p className="text-xs text-muted-foreground">
+                {comment.createdAt
+                  ? formatDistanceToNow(comment.createdAt.toDate(), { addSuffix: true })
+                  : 'just now'}
+              </p>
+            </div>
+            <p className="mt-1 break-words text-muted-foreground">{comment.message}</p>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
