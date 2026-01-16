@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   collection,
   query,
   where,
   serverTimestamp,
   Timestamp,
-  orderBy,
   addDoc,
 } from 'firebase/firestore';
 import {
@@ -18,6 +17,8 @@ import {
   useUser,
   initiateAnonymousSignIn,
 } from '@/firebase';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 import type { NodeComment } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,7 +34,6 @@ interface CommentBoxProps {
   nodeName: string;
 }
 
-// Redefine type locally for clarity, ensuring it matches lib/types.ts
 interface Comment extends Omit<NodeComment, 'createdAt'> {
   createdAt: Timestamp | null;
 }
@@ -66,7 +66,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     }
   }, [isUserLoading, user, auth]);
 
-  // Memoize the Firestore query
+  // Memoize the Firestore query, removing orderBy to avoid composite index requirement
   const commentsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     const commentsCollectionRef = collection(
@@ -75,12 +75,22 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     );
     return query(
         commentsCollectionRef,
-        where('nodeName', '==', nodeName),
-        orderBy('createdAt', 'desc')
+        where('nodeName', '==', nodeName)
     );
   }, [firestore, shipmentScancode, nodeName]);
 
   const { data: comments, isLoading: areCommentsLoading, error } = useCollection<Comment>(commentsQuery);
+  
+  // Sort comments on the client side for performance
+  const sortedComments = useMemo(() => {
+    if (!comments) return [];
+    // Create a new sorted array
+    return [...comments].sort((a, b) => {
+      const dateA = a.createdAt?.toDate?.()?.getTime() ?? 0;
+      const dateB = b.createdAt?.toDate?.()?.getTime() ?? 0;
+      return dateB - dateA; // Sort descending
+    });
+  }, [comments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,8 +103,8 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
       });
       return;
     }
-    if (!firestore) {
-        toast({ variant: 'destructive', title: 'Database not available' });
+    if (!firestore || !user) {
+        toast({ variant: 'destructive', title: 'User or Database not available' });
         return;
     }
 
@@ -103,7 +113,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     const collectionRef = collection(firestore, `shipments/${shipmentScancode}/node_comments`);
     
     const newComment = {
-      authorId: user?.uid || 'anonymous',
+      authorId: user.uid,
       authorName: authorName.trim(),
       message: message.trim(),
       nodeName,
@@ -113,7 +123,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     try {
         await addDoc(collectionRef, newComment);
         setMessage('');
-        // Keep author name for subsequent comments in the same session
+        // Keep author name for subsequent comments
         toast({
             title: 'Success!',
             description: 'Your remark has been submitted.',
@@ -121,10 +131,23 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
 
     } catch (err: any) {
         console.error('Submission failed:', err);
+        
+        const permissionError = new FirestorePermissionError({
+          path: collectionRef.path,
+          operation: 'create',
+          requestResourceData: {
+            authorId: user.uid,
+            authorName: authorName.trim(),
+            message: message.trim(),
+            nodeName,
+          }
+        });
+        errorEmitter.emit('permission-error', permissionError);
+
         toast({
             variant: 'destructive',
             title: 'Submission Failed',
-            description: err.message || 'There was an error saving your remark. Please check permissions and try again.',
+            description: 'Could not save your remark. Please check permissions.',
         });
     } finally {
         setIsSubmitting(false);
@@ -136,10 +159,9 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
       className="mt-4 w-full space-y-4 rounded-lg border bg-card/50 p-4"
     >
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-semibold">Remarks ({comments?.length ?? 0})</h4>
+        <h4 className="text-sm font-semibold">Remarks ({sortedComments?.length ?? 0})</h4>
       </div>
       
-      {/* Display Comments */}
       <div className="space-y-4">
         {areCommentsLoading && (
             <div className="space-y-3">
@@ -150,10 +172,10 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
         {!areCommentsLoading && error && (
           <p className="text-xs text-destructive">Error loading remarks.</p>
         )}
-        {!areCommentsLoading && !error && comments?.length === 0 && (
+        {!areCommentsLoading && !error && sortedComments?.length === 0 && (
           <p className="text-xs text-muted-foreground">No remarks yet.</p>
         )}
-        {comments?.map((comment) => (
+        {sortedComments?.map((comment) => (
           <div key={comment.id} className="flex items-start gap-3 text-sm">
             <Avatar className="h-8 w-8 border">
                 <AvatarFallback>{getInitials(comment.authorName)}</AvatarFallback>
@@ -188,7 +210,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
                         onChange={(e) => setAuthorName(e.target.value)}
                         className="bg-background h-8"
                         required
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isUserLoading}
                     />
                     <Textarea
                         placeholder="Post a new remark..."
@@ -196,12 +218,12 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
                         onChange={(e) => setMessage(e.target.value)}
                         className="bg-background min-h-[60px]"
                         required
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isUserLoading}
                     />
                 </div>
             </div>
             <div className="flex justify-end">
-                <Button type="submit" size="sm" disabled={isSubmitting}>
+                <Button type="submit" size="sm" disabled={isSubmitting || isUserLoading}>
                     {isSubmitting ? 'Posting...' : 'Post Comment'}
                     <Send className="ml-2 h-4 w-4" />
                 </Button>
