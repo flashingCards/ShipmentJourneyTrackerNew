@@ -8,12 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronsUpDown, MessageSquarePlus } from 'lucide-react';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { useToast } from '@/hooks/use-toast';
 import type { NodeComment } from '@/lib/types';
 
@@ -57,7 +54,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
   }, [comments]);
 
 
-  const handleAddComment = async (e: React.FormEvent) => {
+  const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!firestore || newComment.trim() === '' || authorName.trim() === '') {
       toast({
@@ -70,6 +67,8 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
 
     setIsSubmitting(true);
     const commentsPath = `shipments/${shipmentScancode}/node_comments`;
+    const commentsCollection = collection(firestore, commentsPath);
+    
     const commentData = {
       authorName: authorName.trim(),
       message: newComment.trim(),
@@ -77,33 +76,27 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
       createdAt: serverTimestamp(),
     };
 
-    try {
-      const commentsCollection = collection(firestore, commentsPath);
-      await addDoc(commentsCollection, commentData);
-      
-      setNewComment('');
-      setAuthorName('');
-      setFormIsOpen(false);
-      toast({
-        title: 'Comment Added',
-        description: 'Your comment has been successfully submitted.',
-      });
-    } catch (err) {
-        const { createdAt, ...resourceData } = commentData;
-        const permissionError = new FirestorePermissionError({
-          path: commentsPath,
-          operation: 'create',
-          requestResourceData: resourceData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+    addDoc(commentsCollection, commentData)
+      .then(() => {
         toast({
-            variant: "destructive",
-            title: "Submission Failed",
-            description: "Could not save your comment. Please try again.",
+          title: 'Comment Added',
+          description: 'Your remark has been successfully submitted.',
         });
-    } finally {
-      setIsSubmitting(false);
-    }
+        setNewComment('');
+        setAuthorName('');
+        setFormIsOpen(false); 
+      })
+      .catch((error) => {
+        console.error("Error adding document: ", error);
+        toast({
+          variant: "destructive",
+          title: "Submission Failed",
+          description: error.message || "Could not save your comment. Please try again.",
+        });
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   return (
