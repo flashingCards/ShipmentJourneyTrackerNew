@@ -8,6 +8,7 @@ import {
   serverTimestamp,
   Timestamp,
   addDoc,
+  orderBy,
 } from 'firebase/firestore';
 import {
   useFirestore,
@@ -75,24 +76,14 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     );
     return query(
         commentsCollectionRef,
-        where('nodeName', '==', nodeName)
+        where('nodeName', '==', nodeName),
+        orderBy('createdAt', 'desc')
     );
   }, [firestore, shipmentScancode, nodeName]);
 
   const { data: comments, isLoading: areCommentsLoading, error } = useCollection<Comment>(commentsQuery);
-  
-  // Sort comments on the client side for performance
-  const sortedComments = useMemo(() => {
-    if (!comments) return [];
-    // Create a new sorted array
-    return [...comments].sort((a, b) => {
-      const dateA = a.createdAt?.toDate?.()?.getTime() ?? 0;
-      const dateB = b.createdAt?.toDate?.()?.getTime() ?? 0;
-      return dateB - dateA; // Sort descending
-    });
-  }, [comments]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (message.trim() === '' || authorName.trim() === '') {
@@ -120,22 +111,23 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
       createdAt: serverTimestamp(),
     };
 
-    try {
-        await addDoc(collectionRef, newComment);
+    // Non-blocking write with error handling
+    addDoc(collectionRef, newComment).then(() => {
         setMessage('');
         // Keep author name for subsequent comments
         toast({
             title: 'Success!',
             description: 'Your remark has been submitted.',
         });
-
-    } catch (err: any) {
+    }).catch((err: any) => {
         console.error('Submission failed:', err);
         
+        // Use the error emitter for centralized handling
         const permissionError = new FirestorePermissionError({
           path: collectionRef.path,
           operation: 'create',
           requestResourceData: {
+            // Don't include serverTimestamp in the error payload
             authorId: user?.uid || 'anonymous',
             authorName: authorName.trim(),
             message: message.trim(),
@@ -144,14 +136,9 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
         });
         errorEmitter.emit('permission-error', permissionError);
 
-        toast({
-            variant: 'destructive',
-            title: 'Submission Failed',
-            description: 'Could not save your remark. Please check permissions.',
-        });
-    } finally {
+    }).finally(() => {
         setIsSubmitting(false);
-    }
+    });
   };
 
   return (
@@ -159,7 +146,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
       className="mt-4 w-full space-y-4 rounded-lg border bg-card/50 p-4"
     >
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-semibold">Remarks ({sortedComments?.length ?? 0})</h4>
+        <h4 className="text-sm font-semibold">Remarks ({comments?.length ?? 0})</h4>
       </div>
       
       <div className="space-y-4">
@@ -172,10 +159,10 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
         {!areCommentsLoading && error && (
           <p className="text-xs text-destructive">Error loading remarks.</p>
         )}
-        {!areCommentsLoading && !error && sortedComments?.length === 0 && (
+        {!areCommentsLoading && !error && comments?.length === 0 && (
           <p className="text-xs text-muted-foreground">No remarks yet.</p>
         )}
-        {sortedComments?.map((comment) => (
+        {comments?.map((comment) => (
           <div key={comment.id} className="flex items-start gap-3 text-sm">
             <Avatar className="h-8 w-8 border">
                 <AvatarFallback>{getInitials(comment.authorName)}</AvatarFallback>
