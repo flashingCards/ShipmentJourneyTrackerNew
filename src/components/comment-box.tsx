@@ -103,8 +103,8 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
       });
       return;
     }
-    if (!firestore || !user) {
-        toast({ variant: 'destructive', title: 'User or Database not available' });
+    if (!firestore) {
+        toast({ variant: 'destructive', title: 'Database not available. Please try again.' });
         return;
     }
 
@@ -113,7 +113,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     const collectionRef = collection(firestore, `shipments/${shipmentScancode}/node_comments`);
     
     const newComment = {
-      authorId: user.uid,
+      authorId: user?.uid || 'anonymous',
       authorName: authorName.trim(),
       message: message.trim(),
       nodeName,
@@ -136,7 +136,7 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
           path: collectionRef.path,
           operation: 'create',
           requestResourceData: {
-            authorId: user.uid,
+            authorId: user?.uid || 'anonymous',
             authorName: authorName.trim(),
             message: message.trim(),
             nodeName,

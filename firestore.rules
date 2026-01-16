@@ -1,9 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /shipments/{shipmentId}/node_comments/{commentId} {
-      // Allow anyone to read (get, list) and write (create, update, delete) comments.
-      // This is a temporary, permissive rule for debugging.
+    // WARNING: This is a temporary, highly permissive rule for debugging purposes.
+    // It allows anyone to read from and write to any part of your database.
+    // This should be replaced with more specific rules before production.
+    match /{document=**} {
       allow read, write: if true;
     }
   }
