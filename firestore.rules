@@ -1,11 +1,77 @@
+/**
+ * @file firestore.rules
+ * @description Firestore Security Rules for the application.
+ *
+ * @section Core Philosophy
+ * This ruleset allows public read access for shipment and comment data to facilitate
+ * a collaborative tracking experience. Write access for comments is restricted to
+ * authenticated users, who can only create comments as themselves. This prevents
+ * unauthorized data manipulation while keeping the information open for viewers.
+ * Writes to core shipment data are disabled, assuming they are managed by a backend process.
+ *
+ * @section Data Structure
+ * - /shipments/{shipmentId}: Top-level collection for shipment details, readable by all.
+ * - /shipments/{shipmentId}/shipment_nodes/{shipmentNodeId}: Subcollection for journey stages.
+ * - /shipments/{shipmentId}/shipment_nodes/{shipmentNodeId}/comments/{commentId}: Subcollection for comments on a specific node.
+ *
+ * @section Key Security Decisions
+ * - Public Reads: All shipment, node, and comment data is publicly readable (`allow get, list: if true`).
+ * - Authenticated Commenting: Only authenticated users (including anonymous ones) can create comments.
+ * - Comment Ownership: A user can only create a comment with their own `userId`. They cannot modify or delete comments.
+ * - Immutable Shipments: Direct client-side creation, update, or deletion of shipments and nodes is disabled.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // WARNING: This is a temporary, highly permissive rule for debugging purposes.
-    // It allows anyone to read from and write to any part of your database.
-    // This should be replaced with more specific rules before production.
-    match /{document=**} {
-      allow read, write: if true;
+
+    // -------------------------------------------------------------------------
+    // Helper Functions
+    // -------------------------------------------------------------------------
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // -------------------------------------------------------------------------
+    // Public Data Rules (/shipments)
+    // -------------------------------------------------------------------------
+
+    /**
+     * @description Manages shipment documents. Publicly readable for tracking purposes.
+     * @path /shipments/{shipmentId}
+     * @allow (get, list) Any user, authenticated or not, can read shipment details.
+     * @deny (write) No client can write to shipment documents directly.
+     */
+    match /shipments/{shipmentId} {
+      allow get, list: if true;
+      allow write: if false;
+
+      /**
+       * @description Manages shipment node documents. Publicly readable.
+       * @path /shipments/{shipmentId}/shipment_nodes/{shipmentNodeId}
+       * @allow (get, list) Any user can read the details of a shipment's journey stages.
+       * @deny (write) No client can write to shipment node documents directly.
+       */
+      match /shipment_nodes/{shipmentNodeId} {
+        allow get, list: if true;
+        allow write: if false;
+
+        /**
+         * @description Manages comments on a specific shipment node.
+         * @path /shipments/{shipmentId}/shipment_nodes/{shipmentNodeId}/comments/{commentId}
+         * @allow (get, list) All users can read comments.
+         * @allow (create) An authenticated user can create a comment, but only with their own userId.
+         * @deny (update, delete) Comments are immutable from the client-side.
+         */
+        match /comments/{commentId} {
+          allow get, list: if true;
+          allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+          allow update, delete: if false;
+        }
+      }
     }
   }
 }

@@ -1,11 +1,11 @@
 {
   "entities": {
-    "NodeComment": {
-      "title": "Node Comment",
+    "Comment": {
+      "title": "Comment",
       "description": "A comment on a shipment timeline node.",
       "type": "object",
       "properties": {
-        "authorId": {
+        "userId": {
           "type": "string",
           "description": "The unique ID of the author (Firebase UID)."
         },
@@ -21,22 +21,18 @@
           "type": "string",
           "format": "date-time",
           "description": "The timestamp when the comment was created."
-        },
-        "nodeName": {
-          "type": "string",
-          "description": "The name of the timeline node this comment is associated with."
         }
       },
-      "required": ["authorId", "authorName", "message", "createdAt", "nodeName"]
+      "required": ["userId", "authorName", "message", "createdAt"]
     }
   },
   "auth": {
     "providers": ["anonymous"]
   },
   "firestore": {
-    "/shipments/{shipmentId}/node_comments/{commentId}": {
+    "/shipments/{shipmentId}/shipment_nodes/{nodeId}/comments/{commentId}": {
       "schema": {
-        "$ref": "#/backend/entities/NodeComment"
+        "$ref": "#/backend/entities/Comment"
       },
       "description": "Stores comments for a specific node within a shipment's timeline."
     }

@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   collection,
   query,
-  where,
   serverTimestamp,
   Timestamp,
   addDoc,
@@ -20,7 +19,7 @@ import {
 } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import type { NodeComment } from '@/lib/types';
+import type { Comment as CommentType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,7 +34,7 @@ interface CommentBoxProps {
   nodeName: string;
 }
 
-interface Comment extends Omit<NodeComment, 'createdAt'> {
+interface Comment extends Omit<CommentType, 'createdAt'> {
   createdAt: Timestamp | null;
 }
 
@@ -67,23 +66,22 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
     }
   }, [isUserLoading, user, auth]);
 
-  // Memoize the Firestore query.
-  // REMOVED `orderBy` to avoid needing a composite index, which often causes a "permission denied" error.
+  // Memoize the Firestore query to point to the correct subcollection.
   const commentsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    const commentsCollectionRef = collection(
+    return collection(
       firestore,
-      `shipments/${shipmentScancode}/node_comments`
-    );
-    return query(
-        commentsCollectionRef,
-        where('nodeName', '==', nodeName)
+      `shipments/${shipmentScancode}/shipment_nodes/${nodeName}/comments`
     );
   }, [firestore, shipmentScancode, nodeName]);
 
-  const { data: comments, isLoading: areCommentsLoading, error } = useCollection<Comment>(commentsQuery);
+  const { data: comments, isLoading: areCommentsLoading, error } = useCollection<Comment>(
+    // We add an orderBy query here, but sort on the client to avoid needing a composite index.
+    // The hook doesn't use it, but this is a good pattern if an index is ever added.
+    useMemoFirebase(() => commentsQuery ? query(commentsQuery, orderBy('createdAt', 'desc')) : null, [commentsQuery])
+  );
   
-  // Sort comments on the client-side to ensure chronological order.
+  // Sort comments on the client-side to ensure chronological order and avoid indexing issues.
   const sortedComments = useMemo(() => {
     if (!comments) return [];
     return [...comments].sort((a, b) => {
@@ -112,23 +110,26 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
         toast({ variant: 'destructive', title: 'Database not available. Please try again.' });
         return;
     }
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Authentication required', description: 'Please wait a moment and try again.' });
+        return;
+    }
 
     setIsSubmitting(true);
     
-    const collectionRef = collection(firestore, `shipments/${shipmentScancode}/node_comments`);
+    // The path now correctly points to the subcollection for the specific node.
+    const collectionRef = collection(firestore, `shipments/${shipmentScancode}/shipment_nodes/${nodeName}/comments`);
     
     const newComment = {
-      authorId: user?.uid || 'anonymous',
+      userId: user.uid, // Use `userId` to comply with security rules.
       authorName: authorName.trim(),
       message: message.trim(),
-      nodeName,
       createdAt: serverTimestamp(),
     };
 
     // Non-blocking write with error handling
     addDoc(collectionRef, newComment).then(() => {
         setMessage('');
-        // Keep author name for subsequent comments
         toast({
             title: 'Success!',
             description: 'Your remark has been submitted.',
@@ -141,11 +142,9 @@ export function CommentBox({ shipmentScancode, nodeName }: CommentBoxProps) {
           path: collectionRef.path,
           operation: 'create',
           requestResourceData: {
-            // Don't include serverTimestamp in the error payload
-            authorId: user?.uid || 'anonymous',
+            userId: user.uid,
             authorName: authorName.trim(),
             message: message.trim(),
-            nodeName,
           }
         });
         errorEmitter.emit('permission-error', permissionError);
