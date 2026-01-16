@@ -6,6 +6,8 @@ import {firebaseConfig} from './config';
 export * from './provider';
 export * from './firestore/use-doc';
 export * from './firestore/use-collection';
+export * from './firestore/use-memo-firebase';
+export * from './firestore/non-blocking-updates';
 
 /**
  * Initializes the Firebase app.

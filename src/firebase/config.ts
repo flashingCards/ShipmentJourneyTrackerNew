@@ -4,10 +4,10 @@ import {type FirebaseOptions} from 'firebase/app';
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 export const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_APP_ID,
+  "projectId": "studio-6072428518-2e28a",
+  "appId": "1:34456202028:web:88053b973626717e9ada89",
+  "apiKey": "AIzaSyAmbpO_3GIZ46AyvmAZNZMOXOB4qWA2kKg",
+  "authDomain": "studio-6072428518-2e28a.firebaseapp.com",
+  "storageBucket": "studio-6072428518-2e28a.appspot.com",
+  "messagingSenderId": "34456202028"
 } satisfies FirebaseOptions;
