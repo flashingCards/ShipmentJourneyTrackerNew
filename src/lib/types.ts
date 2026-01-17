@@ -29,6 +29,9 @@ export type Shipment = {
   nodeAvailableDay: string;
   nodeFlag: string;
 
+  deliveryTrackingId: string;
+  carrierName: string;
+
   timeline: ShipmentNode[];
 };
 

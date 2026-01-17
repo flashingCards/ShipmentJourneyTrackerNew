@@ -1,7 +1,7 @@
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card } from '@/components/ui/card';
 import type { Shipment, ShipmentNode as ShipmentNodeType } from '@/lib/types';
-import { Calendar, Clock, CheckCircle, XCircle, Anchor, MapPin, Truck, Package, Plane, Building2, ShieldCheck, Shield, Home } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, Anchor, MapPin, Truck, Package, Plane, Building2, ShieldCheck, Shield, Home, User, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { CommentBox } from '@/components/comment-box';
@@ -160,6 +160,18 @@ const TimelineNode = ({ shipment, node, isLast }: { shipment: Shipment, node: Sh
                             <p className="text-muted-foreground">
                                 <span className="font-medium">Expected:</span> {shipment.expectedDeliveryDate}
                             </p>
+                        </div>
+                        <div className="mt-2 pt-2 border-t space-y-1 text-sm">
+                            <div className="flex items-center text-muted-foreground">
+                                <User className="w-4 h-4 mr-2 shrink-0" />
+                                <span className="font-medium mr-1.5">Carrier:</span>
+                                <span className="text-foreground">{shipment.carrierName}</span>
+                            </div>
+                            <div className="flex items-center text-muted-foreground">
+                                <Ticket className="w-4 h-4 mr-2 shrink-0" />
+                                <span className="font-medium mr-1.5">Tracking ID:</span>
+                                <span className="text-foreground">{shipment.deliveryTrackingId}</span>
+                            </div>
                         </div>
                     </div>
                     <div className="lg:col-span-1">
