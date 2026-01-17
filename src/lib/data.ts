@@ -37,6 +37,7 @@ const COLS = {
     BF_OVER_FLAG: 57,
     BG_NODE_AVAILABLE_DAY: 58,
     BH_NODE_FLAG: 59,
+    DELIVERED_EXPECTED: 64, // BM
 };
 
 const timelineNodesConfig = [
@@ -98,6 +99,7 @@ export async function getShipments(): Promise<Shipment[]> {
                 injectedActualDate: columns[COLS.INJECTED_ACTUAL] || 'N/A',
                 deliveredIdealDate: columns[COLS.DELIVERED_IDEAL] || 'N/A',
                 deliveredActualDate: columns[COLS.DELIVERED_ACTUAL] || 'N/A',
+                expectedDeliveryDate: columns[COLS.DELIVERED_EXPECTED] || 'N/A',
                 overFlag: columns[COLS.BF_OVER_FLAG] || 'N/A',
                 nodeAvailableDay: columns[COLS.BG_NODE_AVAILABLE_DAY] || 'N/A',
                 nodeFlag: columns[COLS.BH_NODE_FLAG] || 'N/A',

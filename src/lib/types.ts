@@ -23,6 +23,7 @@ export type Shipment = {
 
   deliveredIdealDate: string;
   deliveredActualDate: string;
+  expectedDeliveryDate: string;
 
   overFlag: string;
   nodeAvailableDay: string;

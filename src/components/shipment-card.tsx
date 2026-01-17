@@ -29,7 +29,7 @@ const DetailItem = ({ icon: Icon, label, value }: { icon: React.ElementType, lab
   </div>
 );
 
-const DateItem = ({ label, ideal, actual, forceIdeal }: { label: string, ideal: string, actual: string, forceIdeal?: boolean }) => {
+const DateItem = ({ label, ideal, actual, forceIdeal, actualLabel = 'Actual' }: { label: string, ideal: string, actual: string, forceIdeal?: boolean, actualLabel?: string }) => {
     const isDelayed = actual && actual !== 'N/A' && ideal && ideal !== 'N/A' && new Date(actual) > new Date(ideal);
 
     if (forceIdeal) {
@@ -55,7 +55,7 @@ const DateItem = ({ label, ideal, actual, forceIdeal }: { label: string, ideal: 
                 <p className="text-sm font-medium text-foreground">{ideal || 'N/A'}</p>
             </div>
             <div className="mt-1.5">
-                <p className="text-xs text-muted-foreground/80">Actual</p>
+                <p className="text-xs text-muted-foreground/80">{actualLabel}</p>
                 <p className={cn("text-sm font-bold", isDelayed ? 'text-destructive' : 'text-chart-2')}>{actual || 'N/A'}</p>
             </div>
         </div>
@@ -63,7 +63,6 @@ const DateItem = ({ label, ideal, actual, forceIdeal }: { label: string, ideal: 
 };
 
 export function ShipmentCard({ shipment }: { shipment: Shipment }) {
-  const timelineWithoutDelivered = shipment.timeline.filter(node => node.name !== 'Shipment Delivered');
   
   return (
     <AccordionItem value={shipment.scancode} className="border-none">
@@ -99,7 +98,7 @@ export function ShipmentCard({ shipment }: { shipment: Shipment }) {
                 <DateItem label="Pickup" ideal={shipment.pickupIdealDate} actual={shipment.pickupActualDate} />
                 <DateItem label="Gateway" ideal={shipment.connectedToGatewayIdealDate} actual={shipment.connectedToGatewayActualDate} />
                 <DateItem label="Injected" ideal={shipment.injectedIdealDate} actual={shipment.injectedActualDate} />
-                <DateItem label="Delivered" ideal={shipment.deliveredIdealDate} actual={shipment.deliveredActualDate} forceIdeal={true} />
+                <DateItem label="Delivered" ideal={shipment.deliveredIdealDate} actual={shipment.expectedDeliveryDate} actualLabel="Expected" />
               </div>
             </div>
           </div>
@@ -109,9 +108,9 @@ export function ShipmentCard({ shipment }: { shipment: Shipment }) {
             <h3 className="text-lg font-semibold mb-6 text-primary font-headline">Shipment Timeline</h3>
             <div className="relative pl-4">
               <div className="absolute left-[23px] top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
-              {timelineWithoutDelivered.length > 0 ? (
-                timelineWithoutDelivered.map((node, index) => (
-                  <TimelineNode key={index} shipmentScancode={shipment.scancode} node={node} isLast={index === timelineWithoutDelivered.length - 1} />
+              {shipment.timeline.length > 0 ? (
+                shipment.timeline.map((node, index) => (
+                  <TimelineNode key={index} shipment={shipment} node={node} isLast={index === shipment.timeline.length - 1} />
                 ))
               ) : (
                 <p className="text-muted-foreground">No timeline data available for this shipment.</p>
@@ -136,10 +135,40 @@ const timelineIcons: { [key: string]: React.ElementType } = {
   'Shipment Delivered': Home,
 }
 
-const TimelineNode = ({ node, isLast, shipmentScancode }: { node: ShipmentNodeType, isLast: boolean, shipmentScancode: string }) => {
+const TimelineNode = ({ shipment, node, isLast }: { shipment: Shipment, node: ShipmentNodeType, isLast: boolean }) => {
     const hasActual = node.actualDate && node.actualDate !== 'N/A';
     const isDelayed = hasActual && node.idealDate && node.idealDate !== 'N/A' && new Date(node.actualDate) > new Date(node.idealDate);
     const NodeIcon = timelineIcons[node.name] || Package;
+
+    if (node.name === 'Shipment Delivered') {
+        return (
+            <div className={cn('flex gap-4 items-start', !isLast ? 'pb-8' : '')}>
+                <div className="relative z-10 flex items-center justify-center bg-background rounded-full h-8 w-8 ring-4 ring-background shrink-0">
+                    <div className="relative h-6 w-6 flex items-center justify-center">
+                        <NodeIcon className={cn("h-5 w-5", hasActual ? "text-primary" : "text-muted-foreground")} />
+                    </div>
+                </div>
+                <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 pt-1">
+                        <div className="font-semibold text-foreground flex items-center gap-2">
+                            {node.name}
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:gap-6 text-sm mt-1">
+                            <p className="text-muted-foreground">
+                                <span className="font-medium">Ideal:</span> {node.idealDate}
+                            </p>
+                            <p className="text-muted-foreground">
+                                <span className="font-medium">Expected:</span> {shipment.expectedDeliveryDate}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="lg:col-span-1">
+                        <CommentBox shipmentScancode={shipment.scancode} nodeName={node.name} />
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={cn('flex gap-4 items-start', !isLast ? 'pb-8' : '')}>
@@ -164,7 +193,7 @@ const TimelineNode = ({ node, isLast, shipmentScancode }: { node: ShipmentNodeTy
                     </div>
                 </div>
                 <div className="lg:col-span-1">
-                    <CommentBox shipmentScancode={shipmentScancode} nodeName={node.name} />
+                    <CommentBox shipmentScancode={shipment.scancode} nodeName={node.name} />
                 </div>
             </div>
         </div>
