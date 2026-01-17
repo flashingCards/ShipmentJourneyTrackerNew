@@ -29,6 +29,7 @@ export type Shipment = {
   nodeAvailableDay: string;
   nodeFlag: string;
 
+  consoleMawb: string;
   deliveryTrackingId: string;
   carrierName: string;
 

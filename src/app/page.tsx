@@ -3,11 +3,27 @@ import { ShipmentList } from '@/components/shipment-list';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Package } from 'lucide-react';
+import type { Shipment } from '@/lib/types';
 
 export default async function Home() {
-  // We fetch the initial data on the server.
-  // The ShipmentList component will handle subsequent refreshes on the client.
   const shipments = await getShipments();
+
+  // Group shipments by consoleMawb
+  const { groupedShipments, individualShipments } = shipments.reduce(
+    (acc, shipment) => {
+      if (shipment.consoleMawb && shipment.consoleMawb !== 'N/A' && shipment.consoleMawb.trim() !== '') {
+        const key = shipment.consoleMawb.trim();
+        if (!acc.groupedShipments[key]) {
+          acc.groupedShipments[key] = [];
+        }
+        acc.groupedShipments[key].push(shipment);
+      } else {
+        acc.individualShipments.push(shipment);
+      }
+      return acc;
+    },
+    { groupedShipments: {} as Record<string, Shipment[]>, individualShipments: [] as Shipment[] }
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -23,7 +39,10 @@ export default async function Home() {
       </header>
       <main className="container mx-auto px-4 py-8">
         <Suspense fallback={<ShipmentListSkeleton />}>
-          <ShipmentList initialShipments={shipments} />
+          <ShipmentList
+            groupedShipments={groupedShipments}
+            individualShipments={individualShipments}
+          />
         </Suspense>
       </main>
     </div>

@@ -37,6 +37,7 @@ const COLS = {
     BF_OVER_FLAG: 57,
     BG_NODE_AVAILABLE_DAY: 58,
     BH_NODE_FLAG: 59,
+    CONSOLE_MAWB: 60, // BI
     DELIVERY_TRACKING_ID: 61, // BJ
     CARRIER_NAME: 62, // BK
     DELIVERED_EXPECTED: 64, // BM
@@ -105,6 +106,7 @@ export async function getShipments(): Promise<Shipment[]> {
                 overFlag: columns[COLS.BF_OVER_FLAG] || 'N/A',
                 nodeAvailableDay: columns[COLS.BG_NODE_AVAILABLE_DAY] || 'N/A',
                 nodeFlag: columns[COLS.BH_NODE_FLAG] || 'N/A',
+                consoleMawb: columns[COLS.CONSOLE_MAWB] || 'N/A',
                 deliveryTrackingId: columns[COLS.DELIVERY_TRACKING_ID] || 'N/A',
                 carrierName: columns[COLS.CARRIER_NAME] || 'N/A',
                 timeline: timeline
